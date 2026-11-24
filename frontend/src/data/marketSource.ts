@@ -1,4 +1,4 @@
-import type { MarketSnapshot, OrderRequest, OrderResult } from '../domain/types'
+import type { MarketSnapshot, NewsTone, OrderRequest, OrderResult, SimConfig } from '../domain/types'
 
 /**
  * 시세와 내 주문·잔고의 출처. 지금은 MockMarket이고, 연동 시(F.13) 백엔드 구현으로 바꾼다.
@@ -9,4 +9,8 @@ export interface MarketSource {
   subscribe(listener: () => void): () => void
   submitOrder(request: OrderRequest): OrderResult
   cancelOrder(orderId: string): OrderResult
+  /** 시뮬레이터: 봇 수, 주문 속도, 일시 정지 */
+  setSimConfig(config: Partial<SimConfig>): void
+  /** 시뮬레이터: 가상 뉴스 발행. 봇이 반응해 가격이 한쪽으로 움직인다 */
+  publishNews(symbol: string, headline: string, tone: Exclude<NewsTone, 'SYSTEM'>): void
 }

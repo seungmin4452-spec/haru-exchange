@@ -5,6 +5,10 @@ import type {
   BookLevel,
   Candle,
   MarketSnapshot,
+  MetricPoint,
+  NewsItem,
+  NewsTone,
+  SimConfig,
   Order,
   OrderBook,
   OrderRequest,
@@ -22,6 +26,13 @@ const BOOK_DEPTH = 10
 const TRADE_HISTORY = 40
 const CANDLE_HISTORY = 120
 const TICK_MS = 200
+/** 기획서: 1분 안에 ±10% 움직이면 2분간 신규 체결 정지 */
+const BREAKER_RATE = 10
+const BREAKER_WINDOW_MS = 60_000
+const BREAKER_HALT_MS = 120_000
+const NEWS_EFFECT_MS = 30_000
+const METRIC_HISTORY = 120
+const MAX_TRADES_PER_TICK = 60
 
 interface SymbolState {
   info: SymbolInfo
@@ -34,6 +45,11 @@ interface SymbolState {
   candles: Candle[]
   /** 작은 추세. 봇이 한쪽으로 몰리는 장면을 흉내 낸다 */
   drift: number
+  /** 뉴스 효과가 끝나는 시각. 그 전에는 drift를 바꾸지 않는다 */
+  newsUntil: number
+  haltedUntil?: number
+  /** 1초 간격 가격 기록, 서킷브레이커 기준가 */
+  priceHistory: { time: number; price: number }[]
 }
 
 const initialAccount = (): Account => ({
@@ -59,6 +75,12 @@ export class MockMarket implements MarketSource {
   private recentTradeTimes: number[] = []
   private account: Account = initialAccount()
   private orders: Order[] = []
+  private sim: SimConfig = { running: true, bots: 40, ordersPerSecond: 12 }
+  private news: NewsItem[] = []
+  private nextNewsId = 1
+  private metricHistory: MetricPoint[] = []
+  private lastMetricSecond = 0
+  private lastP99 = 160
   private snapshot: MarketSnapshot
   private listeners = new Set<() => void>()
   private timer: ReturnType<typeof setInterval> | undefined
@@ -87,19 +109,98 @@ export class MockMarket implements MarketSource {
 
   /** 한 번의 시간 진행. 테스트에서는 직접 호출한다. */
   step(now: number): void {
-    const count = this.rng.int(1, 4)
-    for (let i = 0; i < count; i++) {
-      const state = this.states.get(this.rng.pick(mockSymbols).symbol)!
-      this.botTrade(state, now + i)
+    this.releaseHalts(now)
+    if (this.sim.running && this.sim.bots > 0) {
+      const expected = (this.sim.ordersPerSecond * TICK_MS) / 1000
+      const count = Math.min(MAX_TRADES_PER_TICK, Math.floor(expected) + (this.rng.next() < expected % 1 ? 1 : 0))
+      const open = [...this.states.values()].filter((st) => !st.haltedUntil)
+      for (let i = 0; i < count && open.length > 0; i++) {
+        this.botTrade(this.rng.pick(open), now + i)
+      }
+      for (const state of this.states.values()) {
+        if (state.newsUntil && state.newsUntil <= now) {
+          state.newsUntil = 0
+          state.drift = 0
+        }
+        this.checkBreaker(state, now)
+      }
     }
     for (const state of this.states.values()) this.jitterBook(state)
     this.recentTradeTimes = this.recentTradeTimes.filter((t) => now - t < 1000)
+    this.recordSecond(now)
     this.publish()
+  }
+
+  setSimConfig = (config: Partial<SimConfig>): void => {
+    this.sim = {
+      ...this.sim,
+      ...config,
+      bots: Math.max(0, Math.round(config.bots ?? this.sim.bots)),
+      ordersPerSecond: Math.max(0, Math.round(config.ordersPerSecond ?? this.sim.ordersPerSecond)),
+    }
+    this.publish()
+  }
+
+  publishNews = (symbol: string, headline: string, tone: Exclude<NewsTone, 'SYSTEM'>, now = Date.now()): void => {
+    const state = this.states.get(symbol)
+    if (!state) return
+    // 봇 대부분이 같은 방향으로 주문해 가격이 빠르게 한쪽으로 움직인다
+    state.drift = tone === 'POSITIVE' ? 0.42 : -0.42
+    state.newsUntil = now + NEWS_EFFECT_MS
+    this.pushNews(now, symbol, headline, tone)
+    this.publish()
+  }
+
+  private pushNews(time: number, symbol: string, headline: string, tone: NewsTone): void {
+    this.news = [{ id: this.nextNewsId++, time, symbol, headline, tone }, ...this.news].slice(0, 30)
+  }
+
+  private checkBreaker(state: SymbolState, now: number): void {
+    if (state.haltedUntil) return
+    const ref = state.priceHistory.find((p) => now - p.time <= BREAKER_WINDOW_MS)
+    if (!ref) return
+    const rate = changeRate(state.price, ref.price)
+    if (Math.abs(rate) >= BREAKER_RATE) {
+      state.haltedUntil = now + BREAKER_HALT_MS
+      state.newsUntil = 0
+      state.drift = 0
+      const sign = rate > 0 ? '+' : ''
+      this.pushNews(now, state.info.symbol, `서킷브레이커 발동: 1분간 ${sign}${rate.toFixed(1)}%, 2분간 체결 정지`, 'SYSTEM')
+    }
+  }
+
+  private releaseHalts(now: number): void {
+    for (const state of this.states.values()) {
+      if (state.haltedUntil && state.haltedUntil <= now) {
+        state.haltedUntil = undefined
+        // 재개 직후 같은 변동으로 다시 걸리지 않게 기준가를 새로 잡는다
+        state.priceHistory = [{ time: now, price: state.price }]
+        this.pushNews(now, state.info.symbol, '거래 재개: 연속 매매로 돌아갑니다', 'SYSTEM')
+      }
+    }
+  }
+
+  private recordSecond(now: number): void {
+    const second = Math.floor(now / 1000)
+    if (second === this.lastMetricSecond) return
+    this.lastMetricSecond = second
+    for (const state of this.states.values()) {
+      const recent = state.priceHistory.filter((p) => now - p.time <= BREAKER_WINDOW_MS)
+      state.priceHistory = [...recent, { time: now, price: state.price }]
+    }
+    // 가상 지연: 주문 속도가 오를수록 p99가 완만하게 늘어난다
+    const load = this.sim.running ? this.sim.ordersPerSecond : 0
+    this.lastP99 = Math.round(120 + load * 0.08 + this.rng.int(0, 40))
+    this.metricHistory = [
+      ...this.metricHistory.slice(-(METRIC_HISTORY - 1)),
+      { time: second, tps: this.recentTradeTimes.length, p99LatencyMs: this.lastP99 },
+    ]
   }
 
   submitOrder = (request: OrderRequest, now = Date.now()): OrderResult => {
     const state = this.states.get(request.symbol)
     if (!state) return { ok: false, reason: '없는 종목입니다' }
+    if (state.haltedUntil) return { ok: false, reason: '거래 정지 중입니다. 취소만 할 수 있습니다' }
     if (!Number.isInteger(request.qty) || request.qty < 1) return { ok: false, reason: '수량은 1주 이상 정수로 입력하세요' }
 
     const { upper, lower } = priceLimits(state.info.prevClose)
@@ -187,6 +288,8 @@ export class MockMarket implements MarketSource {
       trades: [],
       candles,
       drift: 0,
+      newsUntil: 0,
+      priceHistory: [{ time: now, price }],
     }
     this.fillBook(state)
     return state
@@ -200,7 +303,7 @@ export class MockMarket implements MarketSource {
 
   /** 봇 주문 하나가 최우선 호가를 친다. 그 가격에 걸린 내 주문이 있으면 먼저 체결된다. */
   private botTrade(state: SymbolState, now: number): void {
-    if (this.rng.next() < 0.02) state.drift = (this.rng.next() - 0.5) * 0.3
+    if (!state.newsUntil && this.rng.next() < 0.02) state.drift = (this.rng.next() - 0.5) * 0.3
     const side: Side = this.rng.next() + state.drift > 0.5 ? 'BUY' : 'SELL'
     const level = side === 'BUY' ? this.bestAsk(state) : this.bestBid(state)
     if (!level) return
@@ -417,12 +520,20 @@ export class MockMarket implements MarketSource {
       candles,
       metrics: {
         tps: this.recentTradeTimes.length,
-        p99LatencyMs: this.rng.int(140, 220),
+        p99LatencyMs: this.lastP99,
         seq: this.seq,
+        consumerLag: this.sim.running ? Math.round(this.recentTradeTimes.length * 0.04) : 0,
       },
       // 스냅샷은 불변이어야 하므로 계좌와 주문은 복사해서 내보낸다
       account: { ...this.account, holdings: this.account.holdings.map((h) => ({ ...h })) },
       orders: this.orders.map((o) => ({ ...o })),
+      sim: { ...this.sim },
+      news: this.news,
+      halts: Object.fromEntries([...this.states].map(([symbol, st]) => [symbol, st.haltedUntil])),
+      oneMinuteChange: Object.fromEntries(
+        [...this.states].map(([symbol, st]) => [symbol, changeRate(st.price, st.priceHistory[0]?.price ?? st.price)]),
+      ),
+      metricHistory: this.metricHistory,
     }
   }
 }

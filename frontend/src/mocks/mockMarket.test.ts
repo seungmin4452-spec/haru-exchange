@@ -101,3 +101,39 @@ describe('MockMarket 주문', () => {
     expect(haru?.lockedQty ?? 0).toBeGreaterThanOrEqual(0)
   })
 })
+
+describe('MockMarket 시뮬레이터', () => {
+  it('호재 뉴스가 나오면 가격이 오르고, 1분 안에 10% 넘게 오르면 서킷브레이커가 걸린다', () => {
+    const market = new MockMarket(21, NOW)
+    market.setSimConfig({ ordersPerSecond: 400 })
+    const before = market.getSnapshot().quotes.HARU.price
+    market.publishNews('HARU', '하루빛 월드투어 전석 매진', 'POSITIVE', NOW)
+    let halted = false
+    for (let i = 0; i < 300 && !halted; i++) {
+      market.step(NOW + i * 200)
+      halted = market.getSnapshot().halts.HARU !== undefined
+    }
+    const snapshot = market.getSnapshot()
+    expect(snapshot.quotes.HARU.price).toBeGreaterThan(before)
+    expect(halted).toBe(true)
+    expect(snapshot.news[0].tone).toBe('SYSTEM')
+  })
+
+  it('거래 정지 중에는 새 주문을 받지 않는다', () => {
+    const market = new MockMarket(21, NOW)
+    market.setSimConfig({ ordersPerSecond: 400 })
+    market.publishNews('HARU', '하루빛 월드투어 전석 매진', 'POSITIVE', NOW)
+    let i = 0
+    while (market.getSnapshot().halts.HARU === undefined && i < 300) market.step(NOW + i++ * 200)
+    const result = market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'MARKET', qty: 1 }, NOW + i * 200)
+    expect(result.ok).toBe(false)
+  })
+
+  it('일시 정지하면 봇 체결이 멈춘다', () => {
+    const market = new MockMarket(4, NOW)
+    market.setSimConfig({ running: false })
+    const seq = market.getSnapshot().metrics.seq
+    for (let i = 0; i < 50; i++) market.step(NOW + i * 200)
+    expect(market.getSnapshot().metrics.seq).toBe(seq)
+  })
+})

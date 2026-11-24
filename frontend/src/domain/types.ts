@@ -66,6 +66,8 @@ export interface MarketMetrics {
   p99LatencyMs: number
   /** 전체 엔진 순번 */
   seq: number
+  /** 체결 이벤트 소비 지연 (건) */
+  consumerLag: number
 }
 
 export interface MarketSnapshot {
@@ -78,6 +80,15 @@ export interface MarketSnapshot {
   account: Account
   /** 내 주문, 최신이 앞 */
   orders: Order[]
+  sim: SimConfig
+  /** 가상 뉴스와 시장 이벤트, 최신이 앞 */
+  news: NewsItem[]
+  /** 종목별 거래 정지 해제 시각 (epoch ms). 정지가 아니면 없다 */
+  halts: Record<string, number | undefined>
+  /** 종목별 1분 전 대비 등락률 (%) */
+  oneMinuteChange: Record<string, number>
+  /** 1초 간격 지표, 최근 120개 */
+  metricHistory: MetricPoint[]
 }
 
 export type OrderType = 'LIMIT' | 'MARKET'
@@ -131,3 +142,28 @@ export interface Account {
 }
 
 export type OrderResult = { ok: true; order: Order } | { ok: false; reason: string }
+
+/** 시장 시뮬레이터 설정 (기획서 4장: 봇 수와 주문 속도 조절) */
+export interface SimConfig {
+  running: boolean
+  bots: number
+  /** 초당 봇 주문 수 */
+  ordersPerSecond: number
+}
+
+export type NewsTone = 'POSITIVE' | 'NEGATIVE' | 'SYSTEM'
+
+export interface NewsItem {
+  id: number
+  time: number
+  symbol: string
+  headline: string
+  tone: NewsTone
+}
+
+export interface MetricPoint {
+  /** epoch seconds */
+  time: number
+  tps: number
+  p99LatencyMs: number
+}

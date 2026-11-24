@@ -1,23 +1,13 @@
 import {
   CandlestickSeries,
-  ColorType,
   createChart,
   HistogramSeries,
   type IChartApi,
   type ISeriesApi,
-  type UTCTimestamp,
 } from 'lightweight-charts'
 import { useEffect, useRef } from 'react'
+import { baseChartOptions, cssVar, toChartTime } from '../../components/chartTheme'
 import type { Candle } from '../../domain/types'
-
-const KST_OFFSET = 9 * 60 * 60
-
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
-
-/** 차트 라이브러리는 UTC 기준이라 한국 시간으로 옮겨서 넘긴다. */
-const toChartTime = (time: number) => (time + KST_OFFSET) as UTCTimestamp
 
 interface Series {
   chart: IChartApi
@@ -34,23 +24,7 @@ export function CandleChart({ symbol, candles }: { symbol: string; candles: Cand
     const el = container.current!
     const up = cssVar('--color-up')
     const down = cssVar('--color-down')
-    const chart = createChart(el, {
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: cssVar('--color-panel') },
-        textColor: cssVar('--color-text-sub'),
-        fontFamily: cssVar('--font-sans'),
-        fontSize: 12,
-        attributionLogo: true,
-      },
-      grid: {
-        vertLines: { color: cssVar('--color-line') },
-        horzLines: { color: cssVar('--color-line') },
-      },
-      rightPriceScale: { borderColor: cssVar('--color-line') },
-      timeScale: { borderColor: cssVar('--color-line'), timeVisible: true, secondsVisible: false },
-      localization: { locale: 'ko-KR', priceFormatter: (p: number) => Math.round(p).toLocaleString('ko-KR') },
-    })
+    const chart = createChart(el, baseChartOptions())
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: up,
       downColor: down,
