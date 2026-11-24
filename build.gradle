@@ -18,7 +18,7 @@ repositories {
 }
 
 ext {
-	set('springModulithVersion', "2.2.0-M1")
+	set('springModulithVersion', "2.2.0")
 }
 
 dependencies {
@@ -41,7 +41,6 @@ dependencies {
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	runtimeOnly 'org.postgresql:postgresql'
-	runtimeOnly 'org.springframework.modulith:spring-modulith-events-kafka'
 	runtimeOnly 'org.springframework.modulith:spring-modulith-runtime'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
