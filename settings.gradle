@@ -1,1 +1,3 @@
 rootProject.name = 'haru-exchange'
+
+include 'matching-engine'

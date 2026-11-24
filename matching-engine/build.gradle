@@ -1,0 +1,49 @@
+// 매칭 엔진: Spring 없는 순수 Java 모듈.
+// 결정성(같은 명령열 → 같은 결과)과 단독 성능 측정을 위해 프레임워크 의존을 두지 않는다.
+plugins {
+	id 'java-library'
+}
+
+group = 'io.github.seungmin4452spec'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	testImplementation platform('org.junit:junit-bom:6.1.3')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testImplementation 'org.assertj:assertj-core:3.27.7'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// 엔진에 Spring 의존이 들어오면 빌드를 실패시킨다.
+def verifyNoSpring = tasks.register('verifyNoSpring') {
+	group = 'verification'
+	description = 'matching-engine 런타임 클래스패스에 Spring 의존이 없는지 확인한다.'
+	def runtimeClasspath = configurations.runtimeClasspath
+	inputs.files(runtimeClasspath)
+	doLast {
+		def springDeps = runtimeClasspath.incoming.resolutionResult.allComponents
+				.collect { it.moduleVersion }
+				.findAll { it != null && it.group.startsWith('org.springframework') }
+		if (!springDeps.isEmpty()) {
+			throw new GradleException("matching-engine은 Spring에 의존할 수 없습니다: ${springDeps.join(', ')}")
+		}
+	}
+}
+
+tasks.named('check') {
+	dependsOn verifyNoSpring
+}
