@@ -16,11 +16,17 @@ export function formatRate(rate: number): string {
   return `${fixed}%`
 }
 
+const clock = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'Asia/Seoul',
+})
+
 /** HH:mm:ss.SSS (한국 시간) */
 export function formatTime(epochMs: number): string {
-  const d = new Date(epochMs)
-  const hms = d.toLocaleTimeString('ko-KR', { hour12: false, timeZone: 'Asia/Seoul' })
-  return `${hms}.${String(d.getMilliseconds()).padStart(3, '0')}`
+  return `${clock.format(epochMs)}.${String(epochMs % 1000).padStart(3, '0')}`
 }
 
 /** 등락 방향에 맞는 CSS 클래스 */

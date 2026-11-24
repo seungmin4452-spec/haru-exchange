@@ -75,4 +75,59 @@ export interface MarketSnapshot {
   trades: Record<string, Trade[]>
   candles: Record<string, Candle[]>
   metrics: MarketMetrics
+  account: Account
+  /** 내 주문, 최신이 앞 */
+  orders: Order[]
 }
+
+export type OrderType = 'LIMIT' | 'MARKET'
+export type OrderStatus = 'OPEN' | 'PARTIAL' | 'FILLED' | 'CANCELLED'
+
+export interface OrderRequest {
+  symbol: string
+  side: Side
+  type: OrderType
+  /** 지정가일 때만 */
+  price?: number
+  qty: number
+}
+
+export interface Fill {
+  seq: number
+  time: number
+  price: number
+  qty: number
+  fee: number
+}
+
+export interface Order {
+  id: string
+  symbol: string
+  side: Side
+  type: OrderType
+  /** 지정가. 시장가는 undefined */
+  price?: number
+  qty: number
+  filledQty: number
+  status: OrderStatus
+  createdAt: number
+  /** 매수: 아직 잠겨 있는 현금. 매도: 아직 잠겨 있는 주식 수 */
+  locked: number
+  fills: Fill[]
+}
+
+export interface Holding {
+  symbol: string
+  qty: number
+  lockedQty: number
+  /** 평균 매입가 (수수료 제외) */
+  avgPrice: number
+}
+
+export interface Account {
+  cashAvailable: number
+  cashLocked: number
+  holdings: Holding[]
+}
+
+export type OrderResult = { ok: true; order: Order } | { ok: false; reason: string }
