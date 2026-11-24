@@ -54,7 +54,7 @@ export function MarketBoard({ market, now }: { market: MarketSnapshot; now: numb
                   </td>
                   <td>
                     {halt ? (
-                      <span className="status warn">정지 {remaining(halt, now)} 남음</span>
+                      <span className="status warn">{Number.isFinite(halt) ? `정지 ${remaining(halt, now)} 남음` : '운영자 정지'}</span>
                     ) : near ? (
                       <span className="status caution">급변 주의</span>
                     ) : (
