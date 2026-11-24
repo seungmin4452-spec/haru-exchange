@@ -6,6 +6,14 @@
 - `docs/모의 증권 거래소 기획서.md`: 아키텍처, 불변식, Kafka 토픽, 장애 실험 기준
 - `docs/WBS.md`: 단계별 작업 번호(예: 0.1, 1.3)와 GitHub 이슈 연결
 
+## 모듈 구조
+
+- 루트 프로젝트: Spring Boot 애플리케이션 (API, 원장, Kafka, 시세 등)
+- `matching-engine/`: 매칭 엔진. **Spring을 포함해 어떤 프레임워크에도 의존하지 않는 순수 Java 모듈이다.**
+  - 패키지: `io.github.seungmin4452spec.haruexchange.engine`
+  - 시스템 시계, 난수 같은 외부 상태 없이 입력 명령만으로 결과가 결정되어야 한다.
+  - `./gradlew :matching-engine:check`의 `verifyNoSpring` 태스크가 Spring 의존 유입을 막는다.
+
 ## Git 작업 규칙
 
 - `main`에 직접 커밋하지 않는다. 모든 작업은 최신 `main`에서 브랜치를 만들어 진행한다.
