@@ -1,0 +1,40 @@
+/* 내 자산. 위 요약, 아래 보유 종목 표 */
+
+.assets-layout {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  max-width: 1440px;
+  min-height: calc(100vh - 52px);
+}
+
+.assets-summary .panel-title, .orders-head .panel-title, .ledger-summary .panel-title { font-size: var(--text-title); }
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, 1fr);
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+}
+.summary-grid > div { padding: 0 var(--space-4); border-left: 1px solid var(--color-line); }
+.summary-grid > div:first-child { padding-left: 0; border-left: 0; }
+.summary-grid dt { font-size: var(--text-label); color: var(--color-text-sub); }
+.summary-grid dd { margin: 4px 0 0; font-size: var(--text-headline); font-weight: 700; }
+.summary-grid dd small { font-size: var(--text-body-sm); font-weight: 600; }
+.summary-total dd { font-size: var(--text-price); letter-spacing: -0.02em; }
+.summary-grid .hint { margin-top: 4px; font-size: var(--text-label); color: var(--color-text-sub); }
+
+.holdings { min-height: 0; }
+.holdings-scroll { overflow: auto; min-height: 0; }
+.row-link { color: inherit; font-weight: 600; text-decoration: none; }
+.row-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.data-table .empty a { color: var(--color-text); }
+.table-note { padding: var(--space-3) var(--space-4); font-size: var(--text-label); color: var(--color-text-sub); border-top: 1px solid var(--color-line); }
+
+@media (max-width: 1100px) {
+  .summary-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+  .summary-grid > div { padding: 0; border-left: 0; }
+  .summary-total { grid-column: 1 / -1; }
+}
