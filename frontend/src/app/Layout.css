@@ -1,0 +1,42 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.shell-header {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-5);
+  background: var(--color-shell);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.brand { font-size: var(--text-title); font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+
+.shell-nav { display: flex; gap: var(--space-1); overflow-x: auto; }
+
+.shell-nav a {
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-sub);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.shell-nav a:hover { color: var(--color-text); background: var(--color-panel); }
+.shell-nav a.active { color: var(--color-text); background: var(--color-panel-raised); font-weight: 600; }
+
+.disclaimer { margin-left: auto; font-size: var(--text-label); color: var(--color-text-sub); white-space: nowrap; }
+
+.shell-main { flex: 1; min-height: 0; }
+
+.page { padding: var(--space-5); display: grid; gap: var(--space-2); }
+.page h1 { font-size: var(--text-headline); }
+.page p { color: var(--color-text-sub); }
+
+/* 좁은 화면: 고지 문구는 숨기지 않고 아래 줄로 내린다 */
+@media (max-width: 1100px) {
+  .shell-header { height: auto; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-2) var(--space-4); }
+  .shell-nav { flex: 1; min-width: 0; }
+  .disclaimer { flex-basis: 100%; margin-left: 0; }
+}
