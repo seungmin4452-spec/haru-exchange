@@ -9,6 +9,8 @@ export interface MarketSource {
   subscribe(listener: () => void): () => void
   submitOrder(request: OrderRequest): OrderResult
   cancelOrder(orderId: string): OrderResult
+  /** 정정: 가격을 바꾸거나 수량을 늘리면 시간 우선순위를 잃는다 */
+  amendOrder(orderId: string, change: { price?: number; qty?: number }): OrderResult
   /** 시뮬레이터: 봇 수, 주문 속도, 일시 정지 */
   setSimConfig(config: Partial<SimConfig>): void
   /** 시뮬레이터: 가상 뉴스 발행. 봇이 반응해 가격이 한쪽으로 움직인다 */

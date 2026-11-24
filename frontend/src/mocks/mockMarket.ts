@@ -358,6 +358,55 @@ export class MockMarket implements MarketSource {
     return { ok: true, order: this.orders.find((o) => o.id === order.id)! }
   }
 
+  /**
+   * 정정. 기획서 규칙: 가격을 바꾸거나 수량을 늘리면 시간 우선순위를 잃고, 수량만 줄이면 유지한다.
+   * 잠금은 남은 수량 기준으로 다시 계산한다.
+   */
+  amendOrder = (orderId: string, change: { price?: number; qty?: number }, now = Date.now()): OrderResult => {
+    const order = this.orders.find((o) => o.id === orderId)
+    if (!order) return { ok: false, reason: '없는 주문입니다' }
+    if (order.status === 'FILLED' || order.status === 'CANCELLED') return { ok: false, reason: '이미 끝난 주문은 정정할 수 없습니다' }
+    if (order.type !== 'LIMIT') return { ok: false, reason: '시장가 주문은 정정할 수 없습니다' }
+    if (this.engine.status !== 'RUNNING') return { ok: false, reason: '매칭 엔진 복구 중입니다' }
+    const state = this.states.get(order.symbol)!
+    if (state.haltedUntil) return { ok: false, reason: '거래 정지 중입니다. 취소만 할 수 있습니다' }
+
+    const price = change.price ?? order.price!
+    const qty = change.qty ?? order.qty
+    const remaining = qty - order.filledQty
+    if (!Number.isInteger(qty) || remaining < 1) {
+      return { ok: false, reason: `수량은 이미 체결된 ${order.filledQty}주보다 많아야 합니다` }
+    }
+    const { upper, lower } = priceLimits(state.info.prevClose)
+    if (price < lower || price > upper) return { ok: false, reason: '가격이 상·하한가를 벗어났습니다' }
+    if (price % tickSize(price) !== 0) return { ok: false, reason: `이 가격대의 호가 단위는 ${tickSize(price)}원입니다` }
+    if (price === order.price && qty === order.qty) return { ok: false, reason: '바뀐 내용이 없습니다' }
+
+    if (order.side === 'BUY') {
+      const lock = price * remaining + fee(price * remaining)
+      const diff = lock - order.locked
+      if (diff > this.account.cashAvailable) return { ok: false, reason: '주문 가능 금액이 부족합니다' }
+      this.account.cashAvailable -= diff
+      this.account.cashLocked += diff
+      order.locked = lock
+    } else {
+      const holding = this.account.holdings.find((h) => h.symbol === order.symbol)!
+      const diff = remaining - order.locked
+      if (diff > holding.qty - holding.lockedQty) return { ok: false, reason: '매도 가능 수량을 넘었습니다' }
+      holding.lockedQty += diff
+      order.locked = remaining
+    }
+
+    const losesPriority = price !== order.price || qty > order.qty
+    order.price = price
+    order.qty = qty
+    if (losesPriority) order.createdAt = now
+    this.matchIncoming(state, order, now)
+    this.fillBook(state)
+    this.publish()
+    return { ok: true, order: this.orders.find((o) => o.id === orderId)! }
+  }
+
   cancelOrder = (orderId: string): OrderResult => {
     const order = this.orders.find((o) => o.id === orderId)
     if (!order) return { ok: false, reason: '없는 주문입니다' }

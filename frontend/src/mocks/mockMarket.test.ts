@@ -164,3 +164,32 @@ describe('MockMarket 장애 복구 데모', () => {
     expect(market.getSnapshot().engine.status).toBe('RUNNING')
   })
 })
+
+describe('MockMarket 정정', () => {
+  it('수량만 줄이면 시간 우선순위를 유지하고 잠금을 줄인다', () => {
+    const market = new MockMarket(5, NOW)
+    const bid = market.getSnapshot().books.HARU.bids[4].price
+    const placed = market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: bid, qty: 10 }, NOW)
+    if (!placed.ok) throw new Error(placed.reason)
+    const amended = market.amendOrder(placed.order.id, { qty: 4 }, NOW + 5_000)
+    if (!amended.ok) throw new Error(amended.reason)
+    expect(amended.order.createdAt).toBe(NOW)
+    expect(market.getSnapshot().account.cashLocked).toBe(bid * 4 + Math.ceil((bid * 4 * 15) / 100_000))
+  })
+
+  it('가격을 바꾸면 시간 우선순위를 잃는다', () => {
+    const market = new MockMarket(5, NOW)
+    const book = market.getSnapshot().books.HARU
+    const placed = market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: book.bids[4].price, qty: 10 }, NOW)
+    if (!placed.ok) throw new Error(placed.reason)
+    const amended = market.amendOrder(placed.order.id, { price: book.bids[3].price }, NOW + 5_000)
+    expect(amended.ok && amended.order.createdAt).toBe(NOW + 5_000)
+  })
+
+  it('이미 체결된 수량 이하로는 줄일 수 없다', () => {
+    const market = new MockMarket(5, NOW)
+    const placed = market.submitOrder({ symbol: 'HARU', side: 'SELL', type: 'LIMIT', price: market.getSnapshot().books.HARU.asks[2].price, qty: 5 }, NOW)
+    if (!placed.ok) throw new Error(placed.reason)
+    expect(market.amendOrder(placed.order.id, { qty: 0 }, NOW).ok).toBe(false)
+  })
+})
