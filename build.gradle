@@ -19,6 +19,8 @@ repositories {
 
 ext {
 	set('springModulithVersion', "2.2.0")
+	// com.querydsl은 2024년 이후 릴리스가 없어 유지보수 중인 OpenFeign 포크를 쓴다.
+	set('querydslVersion', "7.7")
 }
 
 dependencies {
@@ -38,12 +40,15 @@ dependencies {
 	implementation 'org.springframework.modulith:spring-modulith-starter-core'
 	implementation 'org.springframework.modulith:spring-modulith-starter-insight'
 	implementation 'org.springframework.modulith:spring-modulith-starter-jpa'
+	implementation "io.github.openfeign.querydsl:querydsl-jpa:${querydslVersion}"
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	runtimeOnly 'org.postgresql:postgresql'
 	runtimeOnly 'org.springframework.modulith:spring-modulith-runtime'
 	annotationProcessor 'org.projectlombok:lombok'
+	annotationProcessor "io.github.openfeign.querydsl:querydsl-apt:${querydslVersion}:jpa"
+	annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-batch-jdbc-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
