@@ -84,6 +84,7 @@ export interface MarketSnapshot {
   /** 가상 뉴스와 시장 이벤트, 최신이 앞 */
   news: NewsItem[]
   /** 종목별 거래 정지 해제 시각 (epoch ms). 정지가 아니면 없다 */
+  /** 정지 해제 시각. 운영자 수동 정지는 Infinity */
   halts: Record<string, number | undefined>
   /** 종목별 1분 전 대비 등락률 (%) */
   oneMinuteChange: Record<string, number>
@@ -92,6 +93,9 @@ export interface MarketSnapshot {
   engine: EngineState
   /** 지금 호가창의 종목별 해시 */
   bookHashes: Record<string, string>
+  session: SessionState
+  dlq: DlqItem[]
+  audit: AuditEntry[]
 }
 
 export type OrderType = 'LIMIT' | 'MARKET'
@@ -190,4 +194,29 @@ export interface EngineState {
   hashesBefore?: Record<string, string>
   hashesAfter?: Record<string, string>
   log: { time: number; text: string }[]
+}
+
+/** 운영 콘솔 (기획서: 개장·마감, 종목 정지, DLQ 재처리) */
+export type SessionState = 'OPEN' | 'CLOSED'
+
+export interface DlqItem {
+  id: string
+  topic: 'order.commands' | 'match.events'
+  /** 파티션 키(종목) */
+  key: string
+  event: string
+  error: string
+  attempts: number
+  firstFailedAt: number
+  status: 'PENDING' | 'REPROCESSED' | 'DISCARDED'
+  /** 다시 처리하면 성공하는지와 그때의 결과 (목 데이터 전용) */
+  retryable: boolean
+  retryResult?: string
+  /** 재처리·폐기 뒤의 결과 */
+  resolution?: string
+}
+
+export interface AuditEntry {
+  time: number
+  action: string
 }

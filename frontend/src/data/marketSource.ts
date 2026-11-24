@@ -21,4 +21,11 @@ export interface MarketSource {
   startRecovery(): void
   /** 장애 복구 데모: 검증이 끝나면 연속 매매를 재개한다 */
   resumeEngine(): void
+  /** 운영 콘솔 */
+  openMarket(): void
+  closeMarket(): void
+  haltSymbol(symbol: string): void
+  resumeSymbol(symbol: string): void
+  retryDlq(id: string): void
+  discardDlq(id: string): void
 }

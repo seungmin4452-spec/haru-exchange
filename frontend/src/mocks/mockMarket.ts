@@ -10,6 +10,9 @@ import type {
   NewsTone,
   SimConfig,
   EngineState,
+  SessionState,
+  DlqItem,
+  AuditEntry,
   Order,
   OrderBook,
   OrderRequest,
@@ -38,6 +41,47 @@ const MAX_TRADES_PER_TICK = 60
 const SNAPSHOT_EVERY = 500
 /** 명령 로그 재생에 걸리는 틱 수 (약 5초) */
 const REPLAY_TICKS = 25
+/** 운영자 수동 정지. 재개할 때까지 풀리지 않는다 */
+const MANUAL_HALT = Number.POSITIVE_INFINITY
+
+/** 데모용 가상 DLQ. 처리 중 실패해 격리된 메시지들 */
+const seedDlq = (now: number): DlqItem[] => [
+  {
+    id: 'dlq-1',
+    topic: 'match.events',
+    key: 'MUDE',
+    event: 'TRADE · match_seq 1,203,877',
+    error: '잔고 반영 중 DB 연결 시간 초과',
+    attempts: 3,
+    firstFailedAt: now - 14 * 60_000,
+    status: 'PENDING',
+    retryable: true,
+    retryResult: '재처리 성공: 원장 1건, 잔고 2건 반영',
+  },
+  {
+    id: 'dlq-2',
+    topic: 'match.events',
+    key: 'GDSS',
+    event: 'TRADE · match_seq 1,203,912',
+    error: '낙관적 잠금 충돌, 재시도 한도 초과',
+    attempts: 3,
+    firstFailedAt: now - 9 * 60_000,
+    status: 'PENDING',
+    retryable: true,
+    retryResult: '이미 반영된 체결이라 건너뜀 · (symbol, match_seq) 중복',
+  },
+  {
+    id: 'dlq-3',
+    topic: 'order.commands',
+    key: 'SORI',
+    event: 'NEW · 주문 접수',
+    error: '역직렬화 실패: 알 수 없는 필드 timeInForce',
+    attempts: 1,
+    firstFailedAt: now - 3 * 60_000,
+    status: 'PENDING',
+    retryable: false,
+  },
+]
 
 /** FNV-1a 32비트. 호가창 내용이 같으면 같은 해시가 나온다 */
 function fnv1a(text: string): string {
@@ -97,6 +141,9 @@ export class MockMarket implements MarketSource {
   private metricHistory: MetricPoint[] = []
   private lastMetricSecond = 0
   private lastP99 = 160
+  private session: SessionState = 'OPEN'
+  private dlq: DlqItem[]
+  private auditLog: AuditEntry[] = []
   private engine: EngineState = { status: 'RUNNING', replayed: 0, replayTotal: 0, duplicates: 0, log: [] }
   private snapshot: MarketSnapshot
   private listeners = new Set<() => void>()
@@ -104,6 +151,7 @@ export class MockMarket implements MarketSource {
 
   constructor(seed = 20261124, now = Date.now()) {
     this.rng = createRng(seed)
+    this.dlq = seedDlq(now)
     for (const info of mockSymbols) {
       this.states.set(info.symbol, this.initSymbol(info, now))
     }
@@ -128,7 +176,7 @@ export class MockMarket implements MarketSource {
   step(now: number): void {
     this.releaseHalts(now)
     this.advanceReplay(now)
-    if (this.engine.status === 'RUNNING' && this.sim.running && this.sim.bots > 0) {
+    if (this.session === 'OPEN' && this.engine.status === 'RUNNING' && this.sim.running && this.sim.bots > 0) {
       const expected = (this.sim.ordersPerSecond * TICK_MS) / 1000
       const count = Math.min(MAX_TRADES_PER_TICK, Math.floor(expected) + (this.rng.next() < expected % 1 ? 1 : 0))
       const open = [...this.states.values()].filter((st) => !st.haltedUntil)
@@ -155,6 +203,86 @@ export class MockMarket implements MarketSource {
    * 시장을 멈춘 채로 해시를 다시 계산하므로 목 데이터에서는 항상 일치한다.
    * 진짜 검증은 백엔드 3단계(Kafka·복구)에서 하고, 연동 후 이 값을 실제 결과로 바꾼다.
    */
+  /** 운영 콘솔: 개장. 장 마감 뒤에만 의미가 있다 */
+  openMarket = (now = Date.now()): void => {
+    if (this.session === 'OPEN') return
+    this.session = 'OPEN'
+    for (const state of this.states.values()) state.priceHistory = [{ time: now, price: state.price }]
+    this.audit(now, '개장')
+    this.pushNews(now, 'HARU', '개장: 연속 매매를 시작합니다', 'SYSTEM')
+    this.publish()
+  }
+
+  /** 운영 콘솔: 장 마감. 기획서 규칙대로 미체결 주문을 모두 만료시키고 잠금을 푼다 */
+  closeMarket = (now = Date.now()): void => {
+    if (this.session === 'CLOSED') return
+    this.session = 'CLOSED'
+    let expired = 0
+    for (const order of this.orders) {
+      if (order.status === 'OPEN' || order.status === 'PARTIAL') {
+        this.release(order)
+        order.status = 'CANCELLED'
+        expired++
+      }
+    }
+    this.audit(now, `장 마감 · 미체결 ${expired}건 만료`)
+    this.pushNews(now, 'HARU', `장 마감: 미체결 주문 ${expired}건을 만료하고 잠금을 풀었습니다`, 'SYSTEM')
+    this.publish()
+  }
+
+  /** 운영 콘솔: 종목 수동 정지. 재개할 때까지 풀리지 않는다 */
+  haltSymbol = (symbol: string, now = Date.now()): void => {
+    const state = this.states.get(symbol)
+    if (!state || state.haltedUntil === MANUAL_HALT) return
+    state.haltedUntil = MANUAL_HALT
+    state.newsUntil = 0
+    state.drift = 0
+    this.audit(now, `${state.info.name} 거래 정지`)
+    this.pushNews(now, symbol, '운영자 거래 정지: 취소만 할 수 있습니다', 'SYSTEM')
+    this.publish()
+  }
+
+  /** 운영 콘솔: 정지 해제. 서킷브레이커 정지도 앞당겨 풀 수 있다 */
+  resumeSymbol = (symbol: string, now = Date.now()): void => {
+    const state = this.states.get(symbol)
+    if (!state?.haltedUntil) return
+    state.haltedUntil = undefined
+    state.priceHistory = [{ time: now, price: state.price }]
+    this.audit(now, `${state.info.name} 거래 재개`)
+    this.pushNews(now, symbol, '거래 재개: 연속 매매로 돌아갑니다', 'SYSTEM')
+    this.publish()
+  }
+
+  /**
+   * 운영 콘솔: DLQ 재처리. 목 데이터의 가상 실패 이벤트다.
+   * 체결 이벤트는 (symbol, match_seq) 유니크 제약 덕분에 이미 반영된 건은 건너뛰고,
+   * 형식이 틀린 메시지는 다시 실패한다.
+   */
+  retryDlq = (id: string, now = Date.now()): void => {
+    const item = this.dlq.find((d) => d.id === id)
+    if (!item || item.status !== 'PENDING') return
+    const attempts = item.attempts + 1
+    const next: DlqItem = item.retryable
+      ? { ...item, attempts, status: 'REPROCESSED', resolution: item.retryResult }
+      : { ...item, attempts, resolution: '재처리 실패: 같은 오류로 다시 실패했습니다' }
+    this.dlq = this.dlq.map((d) => (d.id === id ? next : d))
+    this.audit(now, `DLQ ${item.topic}/${item.key} 재처리 ${next.status === 'REPROCESSED' ? '성공' : '실패'}`)
+    this.publish()
+  }
+
+  /** 운영 콘솔: 재처리할 수 없는 메시지를 폐기 처리한다 */
+  discardDlq = (id: string, now = Date.now()): void => {
+    const item = this.dlq.find((d) => d.id === id)
+    if (!item || item.status !== 'PENDING') return
+    this.dlq = this.dlq.map((d) => (d.id === id ? { ...d, status: 'DISCARDED', resolution: '운영자가 폐기했습니다' } : d))
+    this.audit(now, `DLQ ${item.topic}/${item.key} 폐기`)
+    this.publish()
+  }
+
+  private audit(time: number, action: string): void {
+    this.auditLog = [{ time, action }, ...this.auditLog].slice(0, 50)
+  }
+
   crashEngine = (now = Date.now()): void => {
     if (this.engine.status !== 'RUNNING') return
     const crashSeq = this.seq
@@ -305,6 +433,7 @@ export class MockMarket implements MarketSource {
   submitOrder = (request: OrderRequest, now = Date.now()): OrderResult => {
     const state = this.states.get(request.symbol)
     if (!state) return { ok: false, reason: '없는 종목입니다' }
+    if (this.session === 'CLOSED') return { ok: false, reason: '장이 마감되었습니다' }
     if (this.engine.status !== 'RUNNING') return { ok: false, reason: '매칭 엔진 복구 중입니다. 잠시 후 다시 주문하세요' }
     if (state.haltedUntil) return { ok: false, reason: '거래 정지 중입니다. 취소만 할 수 있습니다' }
     if (!Number.isInteger(request.qty) || request.qty < 1) return { ok: false, reason: '수량은 1주 이상 정수로 입력하세요' }
@@ -368,6 +497,7 @@ export class MockMarket implements MarketSource {
     if (!order) return { ok: false, reason: '없는 주문입니다' }
     if (order.status === 'FILLED' || order.status === 'CANCELLED') return { ok: false, reason: '이미 끝난 주문은 정정할 수 없습니다' }
     if (order.type !== 'LIMIT') return { ok: false, reason: '시장가 주문은 정정할 수 없습니다' }
+    if (this.session === 'CLOSED') return { ok: false, reason: '장이 마감되었습니다' }
     if (this.engine.status !== 'RUNNING') return { ok: false, reason: '매칭 엔진 복구 중입니다' }
     const state = this.states.get(order.symbol)!
     if (state.haltedUntil) return { ok: false, reason: '거래 정지 중입니다. 취소만 할 수 있습니다' }
@@ -691,6 +821,9 @@ export class MockMarket implements MarketSource {
       metricHistory: this.metricHistory,
       engine: { ...this.engine },
       bookHashes: this.bookHashes(),
+      session: this.session,
+      dlq: this.dlq,
+      audit: this.auditLog,
     }
   }
 }

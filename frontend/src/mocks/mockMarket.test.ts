@@ -193,3 +193,44 @@ describe('MockMarket 정정', () => {
     expect(market.amendOrder(placed.order.id, { qty: 0 }, NOW).ok).toBe(false)
   })
 })
+
+describe('MockMarket 운영 콘솔', () => {
+  it('장 마감은 미체결 주문을 만료하고 잠금을 풀며, 새 주문과 봇 체결을 막는다', () => {
+    const market = new MockMarket(9, NOW)
+    const bid = market.getSnapshot().books.HARU.bids[4].price
+    market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: bid, qty: 3 }, NOW)
+    market.closeMarket(NOW)
+    const snap = market.getSnapshot()
+    expect(snap.session).toBe('CLOSED')
+    expect(snap.orders.every((o) => o.status === 'CANCELLED')).toBe(true)
+    expect(snap.account.cashLocked).toBe(0)
+    expect(market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'MARKET', qty: 1 }, NOW).ok).toBe(false)
+    const seq = snap.metrics.seq
+    for (let i = 0; i < 20; i++) market.step(NOW + i * 200)
+    expect(market.getSnapshot().metrics.seq).toBe(seq)
+    market.openMarket(NOW)
+    expect(market.getSnapshot().session).toBe('OPEN')
+  })
+
+  it('수동 정지는 시간이 지나도 풀리지 않고, 재개하면 풀린다', () => {
+    const market = new MockMarket(9, NOW)
+    market.haltSymbol('BYUL', NOW)
+    for (let i = 0; i < 1000; i++) market.step(NOW + i * 200)
+    expect(market.getSnapshot().halts.BYUL).toBe(Number.POSITIVE_INFINITY)
+    expect(market.submitOrder({ symbol: 'BYUL', side: 'BUY', type: 'MARKET', qty: 1 }, NOW).ok).toBe(false)
+    market.resumeSymbol('BYUL', NOW)
+    expect(market.getSnapshot().halts.BYUL).toBeUndefined()
+  })
+
+  it('DLQ: 일시 오류는 재처리에 성공하고, 형식 오류는 다시 실패한다', () => {
+    const market = new MockMarket(9, NOW)
+    market.retryDlq('dlq-1', NOW)
+    market.retryDlq('dlq-3', NOW)
+    const [first, , third] = market.getSnapshot().dlq
+    expect(first.status).toBe('REPROCESSED')
+    expect(third.status).toBe('PENDING')
+    expect(third.attempts).toBe(2)
+    market.discardDlq('dlq-3', NOW)
+    expect(market.getSnapshot().dlq[2].status).toBe('DISCARDED')
+  })
+})
