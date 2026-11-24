@@ -67,7 +67,8 @@ interface SymbolState {
   priceHistory: { time: number; price: number }[]
 }
 
-const initialAccount = (): Account => ({
+/** 가상 계좌의 기초 잔고. 대사에서 "기초 + 원장 증감 = 현재 잔고"를 확인할 때 쓴다 */
+export const initialAccount = (): Account => ({
   cashAvailable: 12_480_000,
   cashLocked: 0,
   holdings: [
