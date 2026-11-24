@@ -1,0 +1,63 @@
+/* 원장·대사. 위 실행 요약, 가운데 대사 항목 | 결제 현황, 아래 원장 거래 */
+
+.ledger-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-areas:
+    'summary summary'
+    'recon settle'
+    'journal journal';
+  gap: var(--space-2);
+  padding: var(--space-2);
+  max-width: 1440px;
+  align-content: start;
+}
+.ledger-summary { grid-area: summary; }
+.recon { grid-area: recon; }
+.settlement { grid-area: settle; align-self: start; }
+.journal { grid-area: journal; }
+
+.ledger-summary .panel-title { font-size: var(--text-title); }
+
+.ledger-run { display: flex; align-items: end; justify-content: space-between; gap: var(--space-5); padding: 0 var(--space-4) var(--space-4); }
+.run-facts { display: flex; gap: var(--space-6); margin: 0; flex-wrap: wrap; }
+.run-facts dt { font-size: var(--text-label); color: var(--color-text-sub); }
+.run-facts dd { margin: 4px 0 0; font-size: var(--text-headline); font-weight: 700; min-height: 28px; display: flex; align-items: center; }
+.run-facts .sub { font-size: var(--text-body-sm); font-weight: 400; color: var(--color-text-sub); }
+.run-facts .stale { font-size: var(--text-body-sm); font-weight: 600; color: var(--color-warn); margin-left: 6px; }
+
+.verdict { font-size: var(--text-body); font-weight: 700; padding: 3px 10px; border-radius: 3px; }
+.verdict.ok { background: var(--color-ok); color: var(--color-shell); }
+.verdict.bad { background: var(--color-warn); color: var(--color-shell); }
+
+.run-button {
+  height: 40px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-shell);
+  font-weight: 700;
+  font-size: var(--text-body);
+  flex: none;
+}
+.run-button:hover { filter: brightness(1.08); }
+
+.recon-table th[scope='row'] { text-align: left; font-weight: 600; padding: 8px var(--space-4); border-bottom: 1px solid var(--color-line); white-space: nowrap; }
+.recon-table td { padding-top: 8px; padding-bottom: 8px; }
+.recon-side { display: block; font-size: var(--text-label); color: var(--color-text-sub); }
+.ledger-layout .ok { color: var(--color-ok); font-weight: 600; }
+.ledger-layout .bad { color: var(--color-warn); font-weight: 600; }
+
+.journal-scroll { max-height: 520px; overflow-y: auto; }
+.journal-table th[scope='rowgroup'] { text-align: left; font-weight: 600; vertical-align: top; padding: 5px var(--space-4); border-bottom: 1px solid var(--color-line); }
+.journal-table td[rowspan] { vertical-align: top; text-align: left; }
+.journal-table > thead th:nth-child(-n+5) { text-align: left; }
+.journal-table td:nth-last-child(2), .journal-table td:nth-last-child(3) { text-align: left; }
+.journal-group tr:not(:last-child) td:not([rowspan]) { border-bottom-color: transparent; }
+.journal-group tr:last-child td, .journal-group th { border-bottom: 1px solid var(--color-line); }
+
+@media (max-width: 1100px) {
+  .ledger-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'summary' 'recon' 'settle' 'journal'; }
+  .ledger-run { flex-direction: column; align-items: stretch; }
+}
