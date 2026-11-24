@@ -1,0 +1,93 @@
+/* 주문 내역. 상태 필터 + 표, 행 아래로 정정 폼과 체결 내역이 펼쳐진다 */
+
+.orders-layout {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  max-width: 1440px;
+  min-height: calc(100vh - 52px);
+  align-content: start;
+}
+
+.orders-head { flex-wrap: wrap; gap: var(--space-3); }
+.orders-head .panel-title { font-size: var(--text-title); }
+.status-filter { display: flex; gap: 2px; padding: 3px; background: var(--color-shell); border-radius: var(--radius-sm); }
+.status-filter button { height: 28px; padding: 0 var(--space-3); border: 0; border-radius: 3px; background: none; color: var(--color-text-sub); font-size: var(--text-body-sm); }
+.status-filter button:hover { color: var(--color-text); }
+.status-filter button[aria-pressed='true'] { background: var(--color-panel-raised); color: var(--color-text); font-weight: 600; }
+.status-filter .num { margin-left: 2px; color: var(--color-text-sub); font-weight: 400; }
+
+.orders-feedback { min-height: 20px; padding: 0 var(--space-4); font-size: var(--text-body-sm); }
+.orders-feedback .ok { color: var(--color-ok); }
+.orders-feedback .bad, .amend-note .bad { color: var(--color-warn); }
+
+.orders-scroll { overflow-x: auto; }
+.orders-table td { white-space: nowrap; }
+/* 글자 열(종목, 구분, 상태)은 왼쪽, 숫자 열은 오른쪽 정렬 */
+.orders-table > * > tr > :is(th, td):is(:nth-child(-n+3), :nth-child(9)) { text-align: left; }
+.orders-table tr.dim td { color: var(--color-text-sub); }
+.orders-table tr.dim td.up, .orders-table tr.dim td.down { color: var(--color-text-sub); }
+
+.order-status { font-size: var(--text-label); font-weight: 600; color: var(--color-text-sub); }
+.status-open, .status-partial { color: var(--color-text); }
+.status-partial::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--color-warn); vertical-align: middle; }
+.status-filled { color: var(--color-ok); }
+
+.row-actions { width: 1%; }
+.row-actions button, .fills-toggle {
+  height: 26px;
+  padding: 0 var(--space-3);
+  margin-left: var(--space-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font-size: var(--text-label);
+}
+.row-actions button:hover, .fills-toggle:hover { border-color: var(--color-text-sub); }
+.row-actions button[aria-expanded='true'] { background: var(--color-panel-raised); }
+.fills-toggle { height: auto; padding: 1px var(--space-2); margin: 0; font-size: inherit; font-variant-numeric: tabular-nums; }
+.fills-toggle[aria-expanded='true'] { background: var(--color-panel-raised); }
+
+.detail-row > td { background: var(--color-shell); padding: var(--space-3) var(--space-4); text-align: left; }
+
+.fills-table { border-collapse: collapse; font-size: var(--text-body-sm); margin-left: auto; min-width: 520px; }
+.fills-table th { font-size: var(--text-label); font-weight: 500; color: var(--color-text-sub); text-align: right; padding: 4px var(--space-3); }
+.fills-table td { text-align: right; padding: 4px var(--space-3); border-top: 1px solid var(--color-line); }
+
+.amend-form {
+  display: grid;
+  grid-template-columns: auto 180px auto 140px 1fr auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  font-size: var(--text-body-sm);
+}
+.amend-form > label { color: var(--color-text-sub); }
+.amend-stepper { display: grid; grid-template-columns: 30px 1fr 30px; height: 32px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); overflow: hidden; }
+.amend-stepper button { border: 0; background: var(--color-panel); color: var(--color-text-sub); font-size: var(--text-title); }
+.amend-stepper button:hover { color: var(--color-text); }
+.amend-stepper input { min-width: 0; border: 0; background: var(--color-shell); color: var(--color-text); text-align: right; padding: 0 var(--space-2); font-size: var(--text-body); }
+.amend-note { color: var(--color-text-sub); }
+.amend-note.warn { color: var(--color-warn); }
+.amend-actions { display: flex; gap: var(--space-2); }
+.amend-actions button {
+  height: 32px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font-weight: 600;
+}
+.amend-actions .primary { background: var(--color-text); border-color: var(--color-text); color: var(--color-shell); }
+.amend-actions .primary:disabled { background: var(--color-panel-raised); border-color: var(--color-panel-raised); color: var(--color-text-sub); }
+
+.row-link { color: inherit; font-weight: 600; text-decoration: none; }
+.row-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.data-table .empty a { color: var(--color-text); }
+.table-note { padding: var(--space-3) var(--space-4); font-size: var(--text-label); color: var(--color-text-sub); border-top: 1px solid var(--color-line); }
+
+@media (max-width: 1100px) {
+  .amend-form { grid-template-columns: auto 1fr; }
+  .amend-note, .amend-actions { grid-column: 1 / -1; }
+}
