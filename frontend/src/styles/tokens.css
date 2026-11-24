@@ -1,0 +1,56 @@
+/*
+ * 하루거래소 디자인 토큰. 값의 근거와 사용 규칙은 루트 DESIGN.md에 있다.
+ * 어두운 3단 HTS 화면 하나만 지원한다 (밝은 테마 없음).
+ */
+:root {
+  color-scheme: dark;
+
+  /* 표면: 셸 → 패널 → 패널 안 강조 순으로 밝아진다 */
+  --color-shell: #16181d;
+  --color-panel: #22262e;
+  --color-panel-raised: #2a2f38;
+  --color-line: #2f343d;
+
+  /* 글자 */
+  --color-text: #e6e8eb;
+  --color-text-sub: #9aa1ac;
+  --color-text-disabled: #6e7581;
+
+  /* 등락: 이 두 색은 상승·하락 외에 쓰지 않는다 */
+  --color-up: #ff5b52;
+  --color-up-soft: rgb(255 91 82 / 0.12);
+  --color-down: #4d8dff;
+  --color-down-soft: rgb(77 141 255 / 0.12);
+  /* 주문 버튼 바탕: 흰 글자 대비 4.5:1 이상 */
+  --color-up-strong: #d0352e;
+  --color-down-strong: #2a66d4;
+
+  /* 상태 */
+  --color-ok: #3fcf8e;
+  --color-warn: #f5b841;
+  --color-focus: #e6e8eb;
+
+  /* 글꼴 */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --text-label: 12px;
+  --text-body-sm: 13px;
+  --text-body: 14px;
+  --text-title: 16px;
+  --text-headline: 20px;
+  --text-price: 28px;
+
+  /* 간격과 모양 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* 움직임: 상태 전환만, 150ms 이하 */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-flash: 600ms;
+}
