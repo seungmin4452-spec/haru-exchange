@@ -28,6 +28,7 @@
 
 - JDK 25가 필요하다. 시스템 기본 Java가 낮으면 `JAVA_HOME`을 JDK 25로 지정해서 실행한다.
 - 테스트: `./gradlew test` (Testcontainers를 쓰므로 Docker가 실행 중이어야 한다)
+- CI: `.github/workflows/backend.yml`이 PR과 `main` 푸시에서 `./gradlew build`를 실행한다 (프론트엔드·문서만 바뀌면 생략). 프론트엔드는 `frontend.yml`이 따로 검사한다.
 - 벤치마크: `./gradlew :matching-engine:jmh`는 기본 설정이 수 분 이상 걸린다. 빠르게 확인할 때는 `./gradlew :matching-engine:jmhJar` 후 `java -jar matching-engine/build/libs/*-jmh.jar <벤치마크> -f 1 -wi 1 -i 1`로 실행한다.
 - 로컬 인프라: `docker compose up -d --wait` / `docker compose down`
   - PostgreSQL, Redis, Kafka(KRaft 단일 노드, `localhost:9092` 고정)
