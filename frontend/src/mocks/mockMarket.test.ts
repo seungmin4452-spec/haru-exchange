@@ -36,3 +36,68 @@ describe('MockMarket', () => {
     }
   })
 })
+
+describe('MockMarket 주문', () => {
+  const total = (m: MockMarket) => {
+    const { account } = m.getSnapshot()
+    return account.cashAvailable + account.cashLocked
+  }
+
+  it('지정가 매수는 주문가 기준으로 수수료까지 잠근다', () => {
+    const market = new MockMarket(5, NOW)
+    const bid = market.getSnapshot().books.HARU.bids[3].price
+    const before = total(market)
+    const result = market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: bid, qty: 10 }, NOW)
+    expect(result.ok).toBe(true)
+    const { account, books } = market.getSnapshot()
+    expect(account.cashLocked).toBe(bid * 10 + Math.ceil((bid * 10 * 15) / 100_000))
+    expect(total(market)).toBe(before)
+    expect(books.HARU.bids.find((l) => l.price === bid)?.myQty).toBe(10)
+  })
+
+  it('최우선 매도가 이상 지정가 매수는 바로 체결되고 남은 잠금을 푼다', () => {
+    const market = new MockMarket(5, NOW)
+    const ask = market.getSnapshot().books.HARU.asks[0]
+    const qty = Math.min(5, ask.qty)
+    const limit = ask.price + 500
+    const result = market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: limit, qty }, NOW)
+    expect(result.ok && result.order.status).toBe('FILLED')
+    const { account } = market.getSnapshot()
+    expect(account.cashLocked).toBe(0)
+    const amount = ask.price * qty
+    expect(account.cashAvailable).toBe(12_480_000 - amount - Math.ceil((amount * 15) / 100_000))
+  })
+
+  it('취소하면 잠금이 전부 풀린다', () => {
+    const market = new MockMarket(5, NOW)
+    const bid = market.getSnapshot().books.HARU.bids[5].price
+    const result = market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: bid, qty: 3 }, NOW)
+    if (!result.ok) throw new Error(result.reason)
+    market.cancelOrder(result.order.id)
+    const { account, orders } = market.getSnapshot()
+    expect(account.cashLocked).toBe(0)
+    expect(account.cashAvailable).toBe(12_480_000)
+    expect(orders[0].status).toBe('CANCELLED')
+  })
+
+  it('매도 가능 수량과 호가 단위를 검사한다', () => {
+    const market = new MockMarket(5, NOW)
+    expect(market.submitOrder({ symbol: 'HARU', side: 'SELL', type: 'MARKET', qty: 81 }, NOW).ok).toBe(false)
+    expect(market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: 46_730, qty: 1 }, NOW).ok).toBe(false)
+  })
+
+  it('봇 체결이 계속돼도 잠금은 음수가 되지 않고 주식 수는 보존된다', () => {
+    const market = new MockMarket(9, NOW)
+    const book = market.getSnapshot().books.HARU
+    market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'LIMIT', price: book.bids[0].price, qty: 40 }, NOW)
+    market.submitOrder({ symbol: 'HARU', side: 'SELL', type: 'LIMIT', price: book.asks[1].price, qty: 30 }, NOW)
+    for (let i = 0; i < 3_000; i++) market.step(NOW + i * 200)
+    const { account, orders } = market.getSnapshot()
+    expect(account.cashLocked).toBeGreaterThanOrEqual(0)
+    const haru = account.holdings.find((h) => h.symbol === 'HARU')
+    const bought = orders.filter((o) => o.side === 'BUY').reduce((s, o) => s + o.filledQty, 0)
+    const sold = orders.filter((o) => o.side === 'SELL').reduce((s, o) => s + o.filledQty, 0)
+    expect(haru?.qty ?? 0).toBe(80 + bought - sold)
+    expect(haru?.lockedQty ?? 0).toBeGreaterThanOrEqual(0)
+  })
+})
