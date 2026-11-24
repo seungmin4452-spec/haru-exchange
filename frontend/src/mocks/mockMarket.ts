@@ -9,6 +9,7 @@ import type {
   NewsItem,
   NewsTone,
   SimConfig,
+  EngineState,
   Order,
   OrderBook,
   OrderRequest,
@@ -33,6 +34,20 @@ const BREAKER_HALT_MS = 120_000
 const NEWS_EFFECT_MS = 30_000
 const METRIC_HISTORY = 120
 const MAX_TRADES_PER_TICK = 60
+/** 가상 스냅샷 주기. 이 순번 간격마다 스냅샷을 찍는다고 가정한다 */
+const SNAPSHOT_EVERY = 500
+/** 명령 로그 재생에 걸리는 틱 수 (약 5초) */
+const REPLAY_TICKS = 25
+
+/** FNV-1a 32비트. 호가창 내용이 같으면 같은 해시가 나온다 */
+function fnv1a(text: string): string {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
 
 interface SymbolState {
   info: SymbolInfo
@@ -81,6 +96,7 @@ export class MockMarket implements MarketSource {
   private metricHistory: MetricPoint[] = []
   private lastMetricSecond = 0
   private lastP99 = 160
+  private engine: EngineState = { status: 'RUNNING', replayed: 0, replayTotal: 0, duplicates: 0, log: [] }
   private snapshot: MarketSnapshot
   private listeners = new Set<() => void>()
   private timer: ReturnType<typeof setInterval> | undefined
@@ -110,7 +126,8 @@ export class MockMarket implements MarketSource {
   /** 한 번의 시간 진행. 테스트에서는 직접 호출한다. */
   step(now: number): void {
     this.releaseHalts(now)
-    if (this.sim.running && this.sim.bots > 0) {
+    this.advanceReplay(now)
+    if (this.engine.status === 'RUNNING' && this.sim.running && this.sim.bots > 0) {
       const expected = (this.sim.ordersPerSecond * TICK_MS) / 1000
       const count = Math.min(MAX_TRADES_PER_TICK, Math.floor(expected) + (this.rng.next() < expected % 1 ? 1 : 0))
       const open = [...this.states.values()].filter((st) => !st.haltedUntil)
@@ -125,10 +142,97 @@ export class MockMarket implements MarketSource {
         this.checkBreaker(state, now)
       }
     }
-    for (const state of this.states.values()) this.jitterBook(state)
+    // 엔진이 멈춰 있으면 호가창도 그대로여야 한다 (복구 전후 해시 비교)
+    if (this.engine.status === 'RUNNING') for (const state of this.states.values()) this.jitterBook(state)
     this.recentTradeTimes = this.recentTradeTimes.filter((t) => now - t < 1000)
     this.recordSecond(now)
     this.publish()
+  }
+
+  /**
+   * 장애 복구 데모. 실제 엔진 복구가 아니라 화면 흐름을 흉내 낸다.
+   * 시장을 멈춘 채로 해시를 다시 계산하므로 목 데이터에서는 항상 일치한다.
+   * 진짜 검증은 백엔드 3단계(Kafka·복구)에서 하고, 연동 후 이 값을 실제 결과로 바꾼다.
+   */
+  crashEngine = (now = Date.now()): void => {
+    if (this.engine.status !== 'RUNNING') return
+    const crashSeq = this.seq
+    const snapshotSeq = crashSeq - (crashSeq % SNAPSHOT_EVERY)
+    this.engine = {
+      status: 'CRASHED',
+      crashSeq,
+      snapshotSeq,
+      replayed: 0,
+      replayTotal: crashSeq - snapshotSeq,
+      duplicates: 0,
+      hashesBefore: this.bookHashes(),
+      hashesAfter: undefined,
+      log: [{ time: now, text: `매칭 엔진 강제 종료 · 마지막 처리 순번 ${crashSeq.toLocaleString()}` }],
+    }
+    this.publish()
+  }
+
+  startRecovery = (now = Date.now()): void => {
+    if (this.engine.status !== 'CRASHED') return
+    const { snapshotSeq = 0, replayTotal } = this.engine
+    this.engine = {
+      ...this.engine,
+      status: 'REPLAYING',
+      log: [
+        ...this.engine.log,
+        { time: now, text: `스냅샷 로드 · 순번 ${snapshotSeq.toLocaleString()}` },
+        { time: now, text: `명령 로그 재생 시작 · ${replayTotal.toLocaleString()}건` },
+      ],
+    }
+    this.publish()
+  }
+
+  resumeEngine = (now = Date.now()): void => {
+    if (this.engine.status !== 'VERIFIED') return
+    this.engine = {
+      ...this.engine,
+      status: 'RUNNING',
+      log: [...this.engine.log, { time: now, text: '연속 매매 재개' }],
+    }
+    this.publish()
+  }
+
+  private advanceReplay(now: number): void {
+    const engine = this.engine
+    if (engine.status !== 'REPLAYING') return
+    const step = Math.max(1, Math.ceil(engine.replayTotal / REPLAY_TICKS))
+    const replayed = Math.min(engine.replayTotal, engine.replayed + step)
+    if (replayed < engine.replayTotal) {
+      this.engine = { ...engine, replayed }
+      return
+    }
+    const after = this.bookHashes()
+    const mismatched = Object.keys(after).filter((k) => after[k] !== engine.hashesBefore?.[k]).length
+    this.engine = {
+      ...engine,
+      replayed,
+      status: 'VERIFIED',
+      hashesAfter: after,
+      log: [
+        ...engine.log,
+        { time: now, text: `명령 로그 재생 완료 · 순번 ${engine.crashSeq?.toLocaleString()}까지` },
+        {
+          time: now,
+          text: mismatched === 0 ? '호가창 해시 8종목 모두 일치 · 중복 반영 0건' : `호가창 해시 불일치 ${mismatched}종목`,
+        },
+      ],
+    }
+  }
+
+  /** 종목별 호가창(가격·잔량·내 주문)을 순서대로 이어 붙여 해시한다 */
+  private bookHashes(): Record<string, string> {
+    const result: Record<string, string> = {}
+    for (const [symbol, state] of this.states) {
+      const { asks, bids } = this.levels(state)
+      const text = [...asks.map((l) => `A${l.price}:${l.qty}:${l.myQty ?? 0}`), ...bids.map((l) => `B${l.price}:${l.qty}:${l.myQty ?? 0}`)].join('|')
+      result[symbol] = fnv1a(`${symbol}|${text}`)
+    }
+    return result
   }
 
   setSimConfig = (config: Partial<SimConfig>): void => {
@@ -200,6 +304,7 @@ export class MockMarket implements MarketSource {
   submitOrder = (request: OrderRequest, now = Date.now()): OrderResult => {
     const state = this.states.get(request.symbol)
     if (!state) return { ok: false, reason: '없는 종목입니다' }
+    if (this.engine.status !== 'RUNNING') return { ok: false, reason: '매칭 엔진 복구 중입니다. 잠시 후 다시 주문하세요' }
     if (state.haltedUntil) return { ok: false, reason: '거래 정지 중입니다. 취소만 할 수 있습니다' }
     if (!Number.isInteger(request.qty) || request.qty < 1) return { ok: false, reason: '수량은 1주 이상 정수로 입력하세요' }
 
@@ -534,6 +639,8 @@ export class MockMarket implements MarketSource {
         [...this.states].map(([symbol, st]) => [symbol, changeRate(st.price, st.priceHistory[0]?.price ?? st.price)]),
       ),
       metricHistory: this.metricHistory,
+      engine: { ...this.engine },
+      bookHashes: this.bookHashes(),
     }
   }
 }

@@ -89,6 +89,9 @@ export interface MarketSnapshot {
   oneMinuteChange: Record<string, number>
   /** 1초 간격 지표, 최근 120개 */
   metricHistory: MetricPoint[]
+  engine: EngineState
+  /** 지금 호가창의 종목별 해시 */
+  bookHashes: Record<string, string>
 }
 
 export type OrderType = 'LIMIT' | 'MARKET'
@@ -166,4 +169,25 @@ export interface MetricPoint {
   time: number
   tps: number
   p99LatencyMs: number
+}
+
+/** 장애 복구 데모의 엔진 상태 (기획서: 스냅샷 + 명령 로그로 복구, 호가창 해시 비교) */
+export type EngineStatus = 'RUNNING' | 'CRASHED' | 'REPLAYING' | 'VERIFIED'
+
+export interface EngineState {
+  status: EngineStatus
+  /** 강제 종료 시점의 마지막 처리 순번 */
+  crashSeq?: number
+  /** 복구에 쓴 마지막 스냅샷의 순번 */
+  snapshotSeq?: number
+  /** 스냅샷 이후 다시 처리한 명령 수 */
+  replayed: number
+  /** 스냅샷 이후 다시 처리해야 할 명령 수 */
+  replayTotal: number
+  /** 같은 명령이 두 번 반영된 건수. 0이어야 한다 */
+  duplicates: number
+  /** 종목별 호가창 해시 */
+  hashesBefore?: Record<string, string>
+  hashesAfter?: Record<string, string>
+  log: { time: number; text: string }[]
 }
