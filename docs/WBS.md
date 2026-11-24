@@ -50,6 +50,7 @@ gantt
 - 0.5 GitHub Actions에 빌드·테스트 CI 추가
 - 0.6 `docs/adr` 폴더와 ADR 템플릿 작성
 - 0.7 가상 기업 8개 이름 확정, 실존 기업·상표와 겹치는지 확인
+- 프론트엔드 뼈대와 디자인 방향 (F.1~F.5, Claude 담당) → [#19](https://github.com/seungmin4452-spec/haru-exchange/issues/19)
 
 ## 1단계 매칭 엔진 · 1~4주 (11/30~12/27)
 
@@ -156,7 +157,7 @@ gantt
 
 ## 4단계 결제·시장·화면·공개 · 13~16주 (2/22~3/21)
 
-**결제와 대사로 한 바퀴를 닫고, 측정 결과와 데모를 공개한다.** 프론트엔드는 15~16주 차 2주로 제한하고, 축소 대상은 표시해 두었다.
+**결제와 대사로 한 바퀴를 닫고, 측정 결과와 데모를 공개한다.** 프론트엔드는 15~16주 차 2주로 제한하고, 축소 대상은 표시해 두었다. 화면 작업(F.6~F.15)은 Claude가 목 데이터로 먼저 만들어 두고 이 기간에 연동한다 → [#20](https://github.com/seungmin4452-spec/haru-exchange/issues/20)
 
 ### 13주 차 · 2/22~2/28 → [#14](https://github.com/seungmin4452-spec/haru-exchange/issues/14)
 
