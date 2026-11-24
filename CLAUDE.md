@@ -13,6 +13,8 @@
   - 패키지: `io.github.seungmin4452spec.haruexchange.engine`
   - 시스템 시계, 난수 같은 외부 상태 없이 입력 명령만으로 결과가 결정되어야 한다.
   - `./gradlew :matching-engine:check`의 `verifyNoSpring` 태스크가 Spring 의존 유입을 막는다.
+  - 속성 기반 테스트는 jqwik(`@Property`), 마이크로벤치마크는 JMH로 `src/jmh/java`에 작성한다.
+- 영속성 조회: QueryDSL(OpenFeign 포크 `io.github.openfeign.querydsl`). Q클래스는 `build/generated/sources/annotationProcessor`에 생성된다.
 
 ## Git 작업 규칙
 
@@ -26,6 +28,7 @@
 
 - JDK 25가 필요하다. 시스템 기본 Java가 낮으면 `JAVA_HOME`을 JDK 25로 지정해서 실행한다.
 - 테스트: `./gradlew test` (Testcontainers를 쓰므로 Docker가 실행 중이어야 한다)
+- 벤치마크: `./gradlew :matching-engine:jmh`는 기본 설정이 수 분 이상 걸린다. 빠르게 확인할 때는 `./gradlew :matching-engine:jmhJar` 후 `java -jar matching-engine/build/libs/*-jmh.jar <벤치마크> -f 1 -wi 1 -i 1`로 실행한다.
 - 로컬 인프라: `docker compose up -d --wait` / `docker compose down`
   - PostgreSQL, Redis, Kafka(KRaft 단일 노드, `localhost:9092` 고정)
   - 이미지는 버전을 고정한다. `compose.yaml`과 `TestcontainersConfiguration`의 이미지 버전을 항상 같게 맞춘다.
