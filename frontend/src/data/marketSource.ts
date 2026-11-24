@@ -13,4 +13,10 @@ export interface MarketSource {
   setSimConfig(config: Partial<SimConfig>): void
   /** 시뮬레이터: 가상 뉴스 발행. 봇이 반응해 가격이 한쪽으로 움직인다 */
   publishNews(symbol: string, headline: string, tone: Exclude<NewsTone, 'SYSTEM'>): void
+  /** 장애 복구 데모: 매칭 엔진 강제 종료 */
+  crashEngine(): void
+  /** 장애 복구 데모: 스냅샷을 읽고 명령 로그를 재생한다 */
+  startRecovery(): void
+  /** 장애 복구 데모: 검증이 끝나면 연속 매매를 재개한다 */
+  resumeEngine(): void
 }

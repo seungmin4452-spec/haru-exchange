@@ -137,3 +137,30 @@ describe('MockMarket 시뮬레이터', () => {
     expect(market.getSnapshot().metrics.seq).toBe(seq)
   })
 })
+
+describe('MockMarket 장애 복구 데모', () => {
+  it('강제 종료 → 재생 → 해시 일치 → 재개 순서로 진행한다', () => {
+    const market = new MockMarket(8, NOW)
+    for (let i = 0; i < 100; i++) market.step(NOW + i * 200)
+    market.crashEngine(NOW)
+    const crashed = market.getSnapshot().engine
+    expect(crashed.status).toBe('CRASHED')
+    expect(crashed.replayTotal).toBe(crashed.crashSeq! - crashed.snapshotSeq!)
+
+    // 종료 중에는 체결도 주문도 없다
+    for (let i = 0; i < 10; i++) market.step(NOW + 20_000 + i * 200)
+    expect(market.getSnapshot().metrics.seq).toBe(crashed.crashSeq)
+    expect(market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'MARKET', qty: 1 }, NOW).ok).toBe(false)
+
+    market.startRecovery(NOW)
+    for (let i = 0; i < 40; i++) market.step(NOW + 30_000 + i * 200)
+    const verified = market.getSnapshot().engine
+    expect(verified.status).toBe('VERIFIED')
+    expect(verified.replayed).toBe(verified.replayTotal)
+    expect(verified.hashesAfter).toEqual(verified.hashesBefore)
+    expect(verified.duplicates).toBe(0)
+
+    market.resumeEngine(NOW)
+    expect(market.getSnapshot().engine.status).toBe('RUNNING')
+  })
+})
