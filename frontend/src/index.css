@@ -1,2 +1,38 @@
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+@import './styles/tokens.css';
+
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+
+html { background: var(--color-shell); }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-shell);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 가격·수량 열은 항상 자릿수를 맞춘다 */
+.num { font-variant-numeric: tabular-nums; }
+
+h1, h2, h3, p { margin: 0; }
+
+button, input, select { font: inherit; color: inherit; }
+
+::selection { background: rgb(230 232 235 / 0.22); }
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+* { scrollbar-width: thin; scrollbar-color: var(--color-line) transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
