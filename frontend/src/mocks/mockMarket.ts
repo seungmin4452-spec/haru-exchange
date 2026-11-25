@@ -49,7 +49,7 @@ const seedDlq = (now: number): DlqItem[] => [
   {
     id: 'dlq-1',
     topic: 'match.events',
-    key: 'MUDE',
+    key: 'OCEN',
     event: 'TRADE · match_seq 1,203,877',
     error: '잔고 반영 중 DB 연결 시간 초과',
     attempts: 3,
@@ -61,7 +61,7 @@ const seedDlq = (now: number): DlqItem[] => [
   {
     id: 'dlq-2',
     topic: 'match.events',
-    key: 'GDSS',
+    key: 'SYST',
     event: 'TRADE · match_seq 1,203,912',
     error: '낙관적 잠금 충돌, 재시도 한도 초과',
     attempts: 3,
@@ -73,7 +73,7 @@ const seedDlq = (now: number): DlqItem[] => [
   {
     id: 'dlq-3',
     topic: 'order.commands',
-    key: 'SORI',
+    key: 'ELEC',
     event: 'NEW · 주문 접수',
     error: '역직렬화 실패: 알 수 없는 필드 timeInForce',
     attempts: 1,
@@ -116,9 +116,9 @@ export const initialAccount = (): Account => ({
   cashAvailable: 12_480_000,
   cashLocked: 0,
   holdings: [
-    { symbol: 'HARU', qty: 80, lockedQty: 0, avgPrice: 45_900 },
-    { symbol: 'TOUR', qty: 150, lockedQty: 0, avgPrice: 16_900 },
-    { symbol: 'CUTN', qty: 300, lockedQty: 0, avgPrice: 8_210 },
+    { symbol: 'ENTR', qty: 80, lockedQty: 0, avgPrice: 45_900 },
+    { symbol: 'AUTO', qty: 150, lockedQty: 0, avgPrice: 16_900 },
+    { symbol: 'FOOD', qty: 300, lockedQty: 0, avgPrice: 8_210 },
   ],
 })
 
@@ -209,7 +209,7 @@ export class MockMarket implements MarketSource {
     this.session = 'OPEN'
     for (const state of this.states.values()) state.priceHistory = [{ time: now, price: state.price }]
     this.audit(now, '개장')
-    this.pushNews(now, 'HARU', '개장: 연속 매매를 시작합니다', 'SYSTEM')
+    this.pushNews(now, 'ENTR', '개장: 연속 매매를 시작합니다', 'SYSTEM')
     this.publish()
   }
 
@@ -226,7 +226,7 @@ export class MockMarket implements MarketSource {
       }
     }
     this.audit(now, `장 마감 · 미체결 ${expired}건 만료`)
-    this.pushNews(now, 'HARU', `장 마감: 미체결 주문 ${expired}건을 만료하고 잠금을 풀었습니다`, 'SYSTEM')
+    this.pushNews(now, 'ENTR', `장 마감: 미체결 주문 ${expired}건을 만료하고 잠금을 풀었습니다`, 'SYSTEM')
     this.publish()
   }
 

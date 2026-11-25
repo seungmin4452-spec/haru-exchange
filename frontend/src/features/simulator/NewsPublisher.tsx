@@ -2,20 +2,21 @@ import { useId, useState } from 'react'
 import { marketSource } from '../../data/market'
 import { mockSymbols } from '../../mocks/symbols'
 
-/** 데모용 가상 뉴스. 실존 인물·기업과 무관한 가상 그룹 하루빛과 소속 기업 이야기다 */
+/** 데모용 가상 뉴스. 실존 인물·기업과 무관한 가상 하루 그룹 이야기다 (하루빛은 하루엔터 소속 가상 아이돌 그룹) */
 const PRESETS = [
   { headline: '하루빛 월드투어 전석 매진', tone: 'POSITIVE' },
-  { headline: '하루빛 정규 3집 컴백 발표', tone: 'POSITIVE' },
-  { headline: '신작 웹툰 해외 연재 확정', tone: 'POSITIVE' },
-  { headline: '신작 게임 사전 예약 100만 돌파', tone: 'POSITIVE' },
-  { headline: '월드투어 일부 공연 연기', tone: 'NEGATIVE' },
-  { headline: '대표 IP 계약 분쟁 보도', tone: 'NEGATIVE' },
-  { headline: '굿즈 품질 논란으로 판매 중단', tone: 'NEGATIVE' },
+  { headline: '차세대 메모리 양산 돌입', tone: 'POSITIVE' },
+  { headline: 'LNG 운반선 6척 수주', tone: 'POSITIVE' },
+  { headline: '소형 원자로 설계 인가 획득', tone: 'POSITIVE' },
+  { headline: '자체 위성 발사 성공', tone: 'POSITIVE' },
+  { headline: '전기차 배터리 결함으로 리콜', tone: 'NEGATIVE' },
+  { headline: '수출 계약 무기한 보류 보도', tone: 'NEGATIVE' },
+  { headline: '원재료 이물질 검출로 판매 중단', tone: 'NEGATIVE' },
 ] as const
 
 export function NewsPublisher({ halts }: { halts: Record<string, number | undefined> }) {
   const ids = useId()
-  const [symbol, setSymbol] = useState('HARU')
+  const [symbol, setSymbol] = useState('ENTR')
   const [presetIndex, setPresetIndex] = useState(0)
   const preset = PRESETS[presetIndex]
   const halted = halts[symbol] !== undefined
