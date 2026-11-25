@@ -60,20 +60,7 @@
 .chart-panel { flex: 1; min-height: 260px; }
 .chart-canvas { flex: 1; min-height: 0; margin: 0 var(--space-2) var(--space-2); }
 
-/* ── 표 공통 ───────────────────────────── */
-.data-table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); }
-.data-table th {
-  position: sticky; top: 0;
-  background: var(--color-panel);
-  font-size: var(--text-label); font-weight: 500; color: var(--color-text-sub);
-  text-align: right; padding: 6px var(--space-4);
-  border-bottom: 1px solid var(--color-line);
-}
-.data-table td { text-align: right; padding: 5px var(--space-4); border-bottom: 1px solid var(--color-line); }
-.data-table th:first-child, .data-table td:first-child { text-align: left; }
-.data-table .sub { color: var(--color-text-sub); }
-.data-table .empty { text-align: center; color: var(--color-text-sub); padding: var(--space-5); }
-
+/* ── 체결 내역 ───────────────────────────── */
 .tape { height: 220px; flex: none; }
 .tape-scroll { overflow-y: auto; min-height: 0; flex: 1; }
 .tape-new td { animation: tape-in var(--duration-flash) var(--ease-out); }

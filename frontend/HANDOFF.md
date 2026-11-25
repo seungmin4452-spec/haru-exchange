@@ -2,13 +2,13 @@
 
 프론트엔드 작업을 이어받을 때 이 파일부터 읽는다. 작업을 멈출 때마다 **현재 상태**와 **다음 할 일**을 갱신한다.
 
-- 마지막 갱신: 2026-11-24
+- 마지막 갱신: 2026-11-25
 - 관리 이슈: #19 (F.1~F.5, 0단계), #20 (F.6~F.15, 4단계)
 - 디자인 기준: 루트 `PRODUCT.md`, `DESIGN.md`, `.impeccable/surfaces/`
 
 ## 현재 상태
 
-F.1~F.12까지 끝나 모두 `main`에 머지됐다. 화면 7개를 목 데이터로 만들었고, F.13부터는 백엔드 API가 필요해서 멈춘 상태다.
+F.1~F.12까지 끝나 모두 `main`에 머지됐다. 화면 7개를 목 데이터로 만들었고, F.13부터는 백엔드 API가 필요해서 멈춘 상태다. F.13 전 정리로 라우트별 코드 분할과 공통 표 스타일 이동을 마쳤다.
 
 | WBS | 내용 | PR | 상태 |
 | --- | --- | --- | --- |
@@ -36,17 +36,17 @@ F.1~F.12까지 끝나 모두 `main`에 머지됐다. 화면 7개를 목 데이�
 
 ### 미뤄 둔 작업
 
-미뤄 둔 작업은 **`docs/후속 작업.md`**에서 관리한다 (장애 복구 해시 실제 연동, 번들 500kB 경고 등). 새로 미루는 일이 생기면 그 문서에 적고, 여기에는 적지 않는다.
+미뤄 둔 작업은 **`docs/후속 작업.md`**에서 관리한다 (장애 복구 해시 실제 연동 등). 새로 미루는 일이 생기면 그 문서에 적고, 여기에는 적지 않는다.
 
 ## 구조 요약
 
 ```
 frontend/src/
-  app/          라우터, 레이아웃(상단 메뉴 52px, 면책 문구)
+  app/          라우터(화면별 lazy 로딩), 레이아웃(상단 메뉴 52px, 면책 문구)
   data/         MarketSource 인터페이스와 연결 지점(market.ts), useMarket()
   domain/       타입, 호가 단위·상하한가(price.ts), 수수료(fees.ts), 포맷, 원장·대사(ledger.ts)
   mocks/        MockMarket(결정적 가상 시장, seed 20261124), 종목 8개, 난수
-  components/   Trend, Flash, chartTheme(차트 공통 설정), components.css
+  components/   Trend, Flash, chartTheme(차트 공통 설정), components.css(패널·표 등 여러 화면 공통 스타일)
   features/     화면별 컴포넌트와 CSS (trade, simulator, recovery, assets, orders, ledger, operator)
   pages/        라우트 7개
 ```
@@ -72,5 +72,6 @@ frontend/src/
 
 - **다른 세션이 같은 저장소의 백엔드를 작업한다.** 프론트 작업은 별도 worktree(`C:\Users\SMSHIN\git\haru-exchange-frontend`)에서 하고, 메인 디렉터리의 `build.gradle`, `compose.yaml` 등 백엔드 파일은 건드리지 않는다. force push는 하지 않는다.
 - oxlint의 `react(purity)` 규칙은 렌더 중 `Date.now()`를 막는다. 시각은 스냅샷의 `metricHistory` 마지막 값을 쓰거나, 모듈 수준 함수로 감싸 이벤트 처리에서만 부른다.
+- 화면은 라우트마다 따로 청크로 나뉜다. 화면별 CSS는 그 화면에 들어가야 읽히므로, 두 화면 이상이 쓰는 스타일은 `components/components.css`에 둔다.
 - 상승 빨강, 하락 파랑. 경고·정지는 `--color-warn`(노랑), 정상·일치는 `--color-ok`(초록). 브라우저 `confirm()` 대신 화면 안에서 두 번 확인한다.
 - 종목 이름은 0.7 확정 전까지 임시다 (`src/mocks/symbols.ts`).
