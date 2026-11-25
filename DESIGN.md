@@ -1,6 +1,6 @@
 ---
 name: 하루거래소
-description: 업종별 가상 기업 8개가 상장된 모의 증권 거래소의 어두운 3단 HTS 화면
+description: 가상 하루 그룹 계열사 8개가 상장된 모의 증권 거래소의 어두운 3단 HTS 화면
 colors:
   shell: "#16181d"
   panel: "#22262e"

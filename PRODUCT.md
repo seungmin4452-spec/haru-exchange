@@ -38,7 +38,7 @@ The screens show internal correctness as evidence: order book hash before and af
 ## Brand Commitments
 
 - Every screen always shows: "모든 종목과 자금은 가상이며 투자 권유가 아닙니다".
-- All companies, tickers, prices, and money are fictional. Eight fictional listed companies, one per sector (semiconductor, defense, shipbuilding, nuclear, food, entertainment, automotive, aerospace); the fictional group 하루빛 belongs to 하루엔터; names must not collide with real companies or trademarks.
+- All companies, tickers, prices, and money are fictional. Eight listed affiliates of the fictional 하루 group, one per sector (semiconductor, defense, shipbuilding, nuclear, food, entertainment, automotive, aerospace); the fictional idol group 하루빛 belongs to 하루엔터; names must not collide with real companies or trademarks.
 - Name: 하루거래소 (working title).
 - Visual direction (chosen 2026-11-24, after one re-roll): the category standard, a dark three-column Korean HTS-style trading screen, executed straight without themed metaphors. Quality bar: 토스증권 PC, 키움 영웅문 HTS, 업비트 웹, 바이낸스 / TradingView.
 - Korean market colour convention: red = up, blue = down.
