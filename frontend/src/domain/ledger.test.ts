@@ -17,9 +17,9 @@ describe('원장과 대사', () => {
     const market = new MockMarket(11, NOW)
     const book = () => market.getSnapshot().books
     market.submitOrder({ symbol: 'HARU', side: 'BUY', type: 'MARKET', qty: 7 }, NOW)
-    market.submitOrder({ symbol: 'TOUR', side: 'SELL', type: 'MARKET', qty: 20 }, NOW)
+    market.submitOrder({ symbol: 'BRAM', side: 'SELL', type: 'MARKET', qty: 20 }, NOW)
     market.submitOrder({ symbol: 'BYUL', side: 'BUY', type: 'LIMIT', price: book().BYUL.asks[0].price, qty: 3 }, NOW)
-    market.submitOrder({ symbol: 'CUTN', side: 'SELL', type: 'MARKET', qty: 300 }, NOW)
+    market.submitOrder({ symbol: 'SAEC', side: 'SELL', type: 'MARKET', qty: 300 }, NOW)
     for (let i = 0; i < 200; i++) market.step(NOW + i * 200)
     return market.getSnapshot()
   }

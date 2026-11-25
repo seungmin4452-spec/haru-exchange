@@ -49,7 +49,7 @@ const seedDlq = (now: number): DlqItem[] => [
   {
     id: 'dlq-1',
     topic: 'match.events',
-    key: 'MUDE',
+    key: 'NURL',
     event: 'TRADE · match_seq 1,203,877',
     error: '잔고 반영 중 DB 연결 시간 초과',
     attempts: 3,
@@ -61,7 +61,7 @@ const seedDlq = (now: number): DlqItem[] => [
   {
     id: 'dlq-2',
     topic: 'match.events',
-    key: 'GDSS',
+    key: 'ARMR',
     event: 'TRADE · match_seq 1,203,912',
     error: '낙관적 잠금 충돌, 재시도 한도 초과',
     attempts: 3,
@@ -73,7 +73,7 @@ const seedDlq = (now: number): DlqItem[] => [
   {
     id: 'dlq-3',
     topic: 'order.commands',
-    key: 'SORI',
+    key: 'SLCN',
     event: 'NEW · 주문 접수',
     error: '역직렬화 실패: 알 수 없는 필드 timeInForce',
     attempts: 1,
@@ -117,8 +117,8 @@ export const initialAccount = (): Account => ({
   cashLocked: 0,
   holdings: [
     { symbol: 'HARU', qty: 80, lockedQty: 0, avgPrice: 45_900 },
-    { symbol: 'TOUR', qty: 150, lockedQty: 0, avgPrice: 16_900 },
-    { symbol: 'CUTN', qty: 300, lockedQty: 0, avgPrice: 8_210 },
+    { symbol: 'BRAM', qty: 150, lockedQty: 0, avgPrice: 16_900 },
+    { symbol: 'SAEC', qty: 300, lockedQty: 0, avgPrice: 8_210 },
   ],
 })
 
